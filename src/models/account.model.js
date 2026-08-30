@@ -9,11 +9,12 @@ const accountSchema = new mongoose.Schema(
       index: true,
     },
     status: {
-      type:String,
+      type: String,
       enum: {
         values: ["ACTIVE", "FROZEN", "CLOSED"],
         message: "Status can be either ACTIVE,FROZEN or CLOSED",
       },
+      default: "ACTIVE",
     },
     currency: {
       type: String,
@@ -27,7 +28,5 @@ const accountSchema = new mongoose.Schema(
 );
 accountSchema.index({ index: 1, status: 1 });
 const account = mongoose.model("Account", accountSchema);
-
-
 
 module.exports = account;
