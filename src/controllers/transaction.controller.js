@@ -2,6 +2,7 @@ const transactionModel = require("../models/transaction.model");
 const ledgerModel = require("../models/ledger.model");
 const accountModel = require("../models/account.model");
 const emailServices = require("../services/email.service");
+const mongoose = require("mongoose");
 
 /**
  * the 10 step transfer flow
@@ -46,20 +47,51 @@ async function createTransaction(req, res) {
 
   // validate idempotency key
   const isTransactionAlreadyExists = transactionModel.findOne({
-    idempotencyKey : idempotencyKey
-  })
+    idempotencyKey: idempotencyKey,
+  });
 
-  if(isTransactionAlreadyExists){
-    if(isTransactionAlreadyExists.status === "COMPLETED"){
-        return res.status(200).json({
-            message:""
-        })
+  if (isTransactionAlreadyExists) {
+    if (isTransactionAlreadyExists.status === "COMPLETED") {
+      return res.status(200).json({
+        message: "Transaction already processed",
+      });
     }
 
+    if (isTransactionAlreadyExists.status === "PENDING") {
+      return res.status(200).json({
+        message: "Transaction is still processing",
+      });
+    }
 
-
-    return res.status(409).json({
-        message:""
-    })
+    if (isTransactionAlreadyExists.status === "FAILED") {
+      return res.status(500).json({
+        message: "Transaction failed. please try again",
+      });
+    }
+    if (isTransactionAlreadyExists.status === "REVERSED") {
+      return res.status(500).json({
+        message: "Transaction reversed. please try again",
+      });
+    }
   }
+
+  //check account status
+  if (senderAccount.status !== "ACTIVE" || recieverAccount !== "ACTIVE") {
+    return res.status(400).json({
+      message:
+        "Both sender's and reciever's account should be ACTIVE to process transaction",
+    });
+  }
+
+  //derive balance from ledger
+  const balance = await senderAccount.getBalance();
+  if (balance < amount) {
+    return res.status(400).json({
+      message: `Insufficient Balance.Your current balance is ${balance}. Requested amount is ${amount}`,
+    });
+  }
+
+  //5. create trasaction(pending)
+  const session = await mongoose.startSession();
+  session.startTransaction();
 }
