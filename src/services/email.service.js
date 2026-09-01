@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
 //   }
 // });
 
-// Function to send email 
+// Function to send email
 const sendEmail = async (to, subject, text, html) => {
   try {
     const info = await transporter.sendMail({
@@ -46,4 +46,127 @@ async function registrationEmail(userEmail, name) {
   await sendEmail(userEmail, subject, text, html);
 }
 
-module.exports = { sendEmail, registrationEmail };
+async function sendTransactionEmail(userEmail, name, amount, toAccount) {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: userEmail,
+    subject: "Transaction Successful",
+    html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+                <h2>Transaction Successful</h2>
+
+                <p>Hello ${name},</p>
+
+                <p>Your transaction has been successfully completed.</p>
+
+                <div style="
+                    background: #f5f5f5;
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin: 20px 0;
+                ">
+                    <p><strong>Amount:</strong> ₹${amount}</p>
+                    <p><strong>To Account:</strong> ${toAccount}</p>
+                    <p><strong>Status:</strong> Successful</p>
+                </div>
+
+                <p>
+                    If you did not make this transaction, please contact
+                    our support team immediately.
+                </p>
+
+                <p>Thank you,<br>Banking Team</p>
+            </div>
+        `,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("Transaction email sent successfully");
+  } catch (error) {
+    console.error("Error sending transaction email:", error);
+  }
+}
+
+async function sendFailedTransactionEmail(
+  userEmail,
+  name,
+  amount,
+  toAccount,
+  reason,
+) {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: userEmail,
+    subject: "Transaction Failed - Payment Alert",
+
+    html: `
+        <!DOCTYPE html>
+        <html>
+        <body style="margin:0; padding:0; background:#f4f4f4; font-family:Arial,sans-serif;">
+
+            <div style="max-width:600px; margin:30px auto; background:white;
+                        padding:30px; border-radius:10px;">
+
+                <h2 style="text-align:center;">
+                    Transaction Failed
+                </h2>
+
+                <p>Hello <strong>${name}</strong>,</p>
+
+                <p>
+                    Unfortunately, your transaction could not be completed.
+                </p>
+
+                <hr>
+
+                <h3>Transaction Details</h3>
+
+                <p>
+                    <strong>Amount:</strong> ₹${amount}
+                </p>
+
+                <p>
+                    <strong>To Account:</strong> ${toAccount}
+                </p>
+
+                <p>
+                    <strong>Status:</strong> Failed
+                </p>
+
+                <p>
+                    <strong>Reason:</strong> ${reason}
+                </p>
+
+                <hr>
+
+                <p style="font-size:13px; color:#666;">
+                    Please verify your account details and try again.
+                    If you believe this is an error, please contact our
+                    support team.
+                </p>
+
+                <p>
+                    Regards,<br>
+                    <strong>Your Banking Team</strong>
+                </p>
+
+            </div>
+
+        </body>
+        </html>
+        `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("Failed transaction email sent successfully");
+  } catch (error) {
+    console.error("Error sending failed transaction email:", error);
+  }
+}
+module.exports = {
+  sendEmail,
+  registrationEmail,
+  sendTransactionEmail,
+  sendFailedTransactionEmail,
+};
