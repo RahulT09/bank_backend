@@ -3,10 +3,11 @@ const ledgerModel = require("../models/ledger.model");
 const accountModel = require("../models/account.model");
 const emailServices = require("../services/email.service");
 const mongoose = require("mongoose");
+const account = require("../models/account.model");
 
 /**
  * the 10 step transfer flow
- * 
+ *
  * 1. validate request
  * 2. validate idempotency key
  * 3. check acc status
@@ -149,6 +150,140 @@ async function createTransaction(req, res) {
   });
 }
 
+async function createIntitialFundTransaction(req, res) {
+  const { toAccount, amount, idempotencyKey } = req.body;
+
+  if (!toAccount || amount === undefined || !idempotencyKey) {
+    return res.status(400).json({
+      success: false,
+      message: "toAccount, amount, and idempotencyKey are required",
+    });
+  }
+
+  const numericAmount = Number(amount);
+
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Amount must be a positive number",
+    });
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    // Check for a previously processed request.
+    const existingTransaction = await transactionModel
+      .findOne({ idempotencyKey })
+      .session(session);
+
+    if (existingTransaction) {
+      await session.abortTransaction();
+
+      return res.status(200).json({
+        success: true,
+        message: "Transaction already exists",
+        transaction: existingTransaction,
+      });
+    }
+
+    // Find the destination account inside the session.
+    const toUserAccount = await accountModel
+      .findById(toAccount)
+      .session(session);
+
+    if (!toUserAccount) {
+      await session.abortTransaction();
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid destination account",
+      });
+    }
+
+    // Find the system user's account.
+    const fromUserAccount = await accountModel
+      .findOne({ user: req.user._id })
+      .session(session);
+
+    if (!fromUserAccount) {
+      await session.abortTransaction();
+
+      return res.status(400).json({
+        success: false,
+        message: "System user account not found",
+      });
+    }
+
+    // Create and save the transaction.
+    const transaction = new transactionModel({
+      fromAccount: fromUserAccount._id,
+      toAccount: toUserAccount._id,
+      amount: numericAmount,
+      idempotencyKey,
+      status: "PENDING",
+    });
+
+    await transaction.save({ session });
+
+    // Create both ledger entries in the same transaction.
+    await ledgerModel.create(
+      [
+        {
+          account: fromUserAccount._id,
+          amount: numericAmount,
+          transaction: transaction._id,
+          type: "DEBIT",
+        },
+        {
+          account: toUserAccount._id,
+          amount: numericAmount,
+          transaction: transaction._id,
+          type: "CREDIT",
+        },
+      ],
+      { session, ordered: true },
+    );
+
+    // TODO: Update both account balances here using your
+    // actual balance field names and appropriate atomic updates.
+
+    transaction.status = "COMPLETED";
+    await transaction.save({ session });
+
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      success: true,
+      message: "Initial funds transaction completed successfully",
+      transaction,
+    });
+  } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+
+    console.error("Initial fund transaction failed:", {
+      message: error.message,
+      code: error.code,
+      codeName: error.codeName,
+      errorLabels: error.errorLabels,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Initial funds transaction failed",
+    });
+  } finally {
+    await session.endSession();
+  }
+}
+
+
+
 module.exports = {
   createTransaction,
+  createIntitialFundTransaction,
 };
