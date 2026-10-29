@@ -93,46 +93,59 @@ async function createTransaction(req, res) {
     });
   }
 
-  //5. create trasaction(pending)
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  let transaction;
+  try {
+    //5. create trasaction(pending)
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-  const transaction = await transactionModel.create(
-    {
-      fromAccount,
-      toAccount,
-      amount,
-      idempotencyKey,
-      status: "PENDING",
-    },
-    { session },
-  );
+    transaction = await transactionModel.create(
+      {
+        fromAccount,
+        toAccount,
+        amount,
+        idempotencyKey,
+        status: "PENDING",
+      },
+      { session },
+    );
 
-  const debitLedgerEntry = await ledgerModel.create(
-    {
-      account: fromAccount,
-      amount: amount,
-      transaction: transaction._id,
-      type: "DEBIT",
-    },
-    { session },
-  );
+    const debitLedgerEntry = await ledgerModel.create(
+      {
+        account: fromAccount,
+        amount: amount,
+        transaction: transaction._id,
+        type: "DEBIT",
+      },
+      { session },
+    );
 
-  const creditLedgerEntry = await ledgerModel.create(
-    {
-      account: toAccount,
-      amount: amount,
-      transaction: transaction._id,
-      type: "CREDIT",
-    },
-    { session },
-  );
+    const creditLedgerEntry = await ledgerModel.create(
+      {
+        account: toAccount,
+        amount: amount,
+        transaction: transaction._id,
+        type: "CREDIT",
+      },
+      { session },
+    );
 
-  transaction.status = "COMPLETED";
-  await transaction.save({ session });
+    // transaction.status = "COMPLETED";
+    // await transaction.save({ session });
 
-  await session.commitTransaction();
-  session.endSession();
+    await transactionModel.findOneAndUpdate(
+      { _id: transaction._id },
+      { status: "COMPLETED" },
+      { session },
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+  } catch (error) {
+    return res.status(400).json({
+      message: "Transaction is pending ",
+    });
+  }
 
   //send email notification
 
@@ -280,8 +293,6 @@ async function createIntitialFundTransaction(req, res) {
     await session.endSession();
   }
 }
-
-
 
 module.exports = {
   createTransaction,

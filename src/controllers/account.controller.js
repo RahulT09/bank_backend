@@ -38,9 +38,17 @@ async function getAccountBalanceController(req, res) {
       message: "Account not found",
     });
   }
+
+  const balance = await account.getBalance();
+
+  res.status(200).json({
+    accountId: account._id,
+    balance: balance,
+  });
 }
 
 module.exports = {
   createAccountController,
   getUserAllAccountController,
+  getAccountBalanceController,
 };
