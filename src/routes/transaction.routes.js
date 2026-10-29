@@ -7,6 +7,6 @@ const transactionController = require("../controllers/transaction.controller");
 //to create a new transaction
 // POST /api/trasaction
 
-router.post("/", authMiddleware.authMiddleware, transactionController);
+// router.post("/", authMiddleware.authMiddleware, transactionController);
 
 module.exports = router;
