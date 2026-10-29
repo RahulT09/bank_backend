@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema(
       minlength: [6, "password should be minimum of length 6"],
       select: false,
     },
+    systemUser: {
+      type: Boolean,
+      default: false,
+      immutable: true,
+      select: false,
+    },
   },
   {
     timestamps: true,
@@ -34,7 +40,7 @@ const userSchema = new mongoose.Schema(
 userSchema.pre("save", async function () {
   try {
     if (!this.isModified("password")) {
-      return 
+      return;
     }
 
     const hash = await bcrypt.hash(this.password, 10);
