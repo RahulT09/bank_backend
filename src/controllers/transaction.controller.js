@@ -137,7 +137,7 @@ async function createTransaction(req, res) {
       { _id: transaction._id },
       { status: "COMPLETED" },
       { session },
-    );
+    );  
 
     await session.commitTransaction();
     session.endSession();
