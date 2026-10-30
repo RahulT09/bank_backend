@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const tokenBlackListSchema = new mongoose.Schema(
   {
     token: {
-      type: string,
+      type: String,
       required: [true, "Token is required to blacklist"],
       unique: [true, "Token already blacklisted"],
     },
@@ -16,7 +16,7 @@ const tokenBlackListSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-tokenBlacListSchema.index(
+tokenBlackListSchema.index(
   { createdAt: 1 },
   { expireAfterSeconds: 60 * 60 * 24 * 3 },
 ); // Set the expiration time to 1 hour (3600 seconds)
