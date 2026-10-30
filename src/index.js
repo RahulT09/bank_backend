@@ -15,7 +15,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/accounts", accountRouter);
 app.use("/api/transactions", transactionRouter);
 
-app.get("/", (req, res) => {
+app.get("/health", (req, res) => {
   res.send("hello world");
 });
 
