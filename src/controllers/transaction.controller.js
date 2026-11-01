@@ -95,7 +95,7 @@ async function createTransaction(req, res) {
 
   let transaction;
   try {
-    //5. create trasaction(pending)
+    //5. create trasaction
     const session = await mongoose.startSession();
     session.startTransaction();
 
